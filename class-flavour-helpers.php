@@ -5,13 +5,18 @@ class Flavour_WordPress_Framework_Helpers {
 	* Returns pagination markup
 	* @author Eric Wennerberg
 	* @since 0.2.0
-	* @version 0.2.0
+	* @version 0.2.3
 	* @param array $pages
+	* @param str $currentClass
+	* @param str | bool $origin
 	* @return str pagination markup
 	*/
-	function helpers_pagination($pages = array(), $currentClass) {
+	function helpers_pagination($pages = array(), $currentClass, $origin = false) {
 		if($pages !== "" && !empty($pages)) {
-			$return = '<ul class="pagination">';
+			$pagination_class = $origin == 'comments' ? 'pagination-comments' : '';
+			$pagination_class = $origin == 'post' ? 'pagination-post' : $pagination_class;
+			$pagination_class = !$origin ? '' : $pagination_class;
+			$return = '<ul class="pagination '.$pagination_class.'">';
 			foreach ($pages as $k => $v) {
 				$t = $v;
 				$v = preg_replace_callback('/(<a.*?>)(.*?)(<\/a>)/i', array($this, 'helpers_pagination_callback_link'), $v);

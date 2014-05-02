@@ -109,31 +109,6 @@ class Flavour_WordPress_Framework_Templates extends Flavour_WordPress_Framework_
 		}
 	}
 
-	/** 
-	* Returns the featured iamge markup
-	* @author Eric Wennerberg
-	* @since 0.2.0
-	* @version 0.2.0
-	* @param str $class
-	* @param bool $inner
-	* @param bool $nomargin
-	* @return str The markup || bool false if no image exist
-	*/
-	function get_the_featured_image($class='', $inner = false, $nomargin = false) {
-		if(has_post_thumbnail()) {
-			$class .= $nomargin ? ' entry-featured-image--nomargin' :'';
-			$imageArray = wp_get_attachment_image_src(get_post_thumbnail_id(get_the_ID()), $this->theme_opt['featured_image_size']);
-			$divinner = $inner ? '<div class="accent-background-color font-awesome"><span>&#xf061;</span></div>':'';
-			$div = '<div class="entry-featured-image background-image featured-image-padding'.$class.'" style="background-image: url('.$imageArray[0].')">'.$divinner.'</div>';
-			if(is_single()) {
-				return $div;
-			} else {
-				return '<a href="'.get_permalink().'">'.$div.'</a>';
-			}
-		} else {
-			return false;
-		}
-	}
 
 	/**
 	* Renders the separator
@@ -224,11 +199,11 @@ class Flavour_WordPress_Framework_Templates extends Flavour_WordPress_Framework_
 	* Returns categories meta tags
 	* @author Eric Wennerberg
 	* @since 0.0.7
-	* @version 0.2.0
+	* @version 0.2.3
 	* @return str categories meta tag markup
 	*/
 	function get_meta_category($before = '') {
-		return '<span class="entry-meta-category">'.$before.' '.get_the_category(", ").'</span>';
+		return '<span class="entry-meta-category">'.$before.' '.get_the_category_list(", ").'</span>';
 	}
 
 
@@ -347,7 +322,7 @@ class Flavour_WordPress_Framework_Templates extends Flavour_WordPress_Framework_
 				'current_class' => ''
 			);
 			$opt = array_merge($default, $args);
-			$return = $this->helpers_pagination(paginate_links($opt), $opt['current_class']);
+			$return = $this->helpers_pagination(paginate_links($opt), $opt['current_class'], 'post');
 			return $return;
 		}
 	}
@@ -391,7 +366,7 @@ class Flavour_WordPress_Framework_Templates extends Flavour_WordPress_Framework_
 		);
 		$opt = array_merge($default, $args);
 
-		$return = $this->helpers_pagination(paginate_comments_links($opt), $opt['current_class']);
+		$return = $this->helpers_pagination(paginate_comments_links($opt), $opt['current_class'], 'comments');
 		return $return;
 	}
 
@@ -407,6 +382,18 @@ class Flavour_WordPress_Framework_Templates extends Flavour_WordPress_Framework_
 		if(get_the_author_meta('description')) {
 			get_template_part( 'author-bio' );
 		}
+	}
+
+
+	/**
+	* Returns gravatar url instead of markup.
+	* @author Eric Wenneberg
+	* @since 0.2.3
+	* @version 0.2.3
+	*/
+	function get_avatar_url($email, $size = 75) {
+		preg_match("/src='(.*?)'/i", get_avatar($email, $size ), $matches);
+		return $matches[1];
 	}
 	/**
 	*Initializes the comments template part
@@ -445,15 +432,33 @@ class Flavour_WordPress_Framework_Templates extends Flavour_WordPress_Framework_
 
 			   		<div class="comment-info">
 			   			<?php echo get_avatar($comment, $args['avatar_size']) ?>
-			   			<?php comment_author_link() ?>
-			   			<span class="comment-meta">
-			   				<a href="<?php echo htmlspecialchars( get_comment_link( $comment->comment_ID ) ) ?>"><?php comment_date().' '.$this->translations['comments_at'].' '.get_comment_time() ?></a>
-			   				<?php edit_comment_link(__('Edit', 'vanilj')) ?>
-			   				<?php comment_reply_link(array('depth' => $depth, 'reply_text' => $this->translations['comments_reply'], 'max_depth' => $args['max_depth'])) ?>
+			   			<div class="comment-info-content">
+				   			<h4 class="comment-author"><?php comment_author_link() ?></h4>
+				   			<span class="comment-meta">
+				   				<?php 
+
+				   				printf(
+				   					'%s',
+				   					'<a href="'.htmlspecialchars(get_comment_link($comment->comment_ID)).'">'.get_comment_date().' '.$this->translations['comments_at'].' '.get_comment_time().'</a>'
+				   				);
+				   				edit_comment_link(
+				   					$this->translations['comments_edit'],
+				   					$this->translations['comments_edit_before']
+				   				);
+				   				comment_reply_link(
+				   					array(
+				   						'before' => $this->translations['comments_edit_before'],
+				   						'depth' => $depth,
+				   						'reply_text' => $this->translations['comments_reply'],
+				   						'max_depth' => $args['max_depth']
+				   					)
+				   				); ?>
+			   				</span>
+			   			</div>
 			   		</div>
-			   		<div class="comment-content">
-			   			<?php echo $comment->comment_content ?>
-			   		</div>
+			   		<div class="comment-content"><?php
+			   			echo $comment->comment_content 
+			   		?></div>
 		   		<?php endif; ?>
 		   	<?php endif; ?>
 	<?php }
@@ -546,8 +551,81 @@ class Flavour_WordPress_Framework_Templates extends Flavour_WordPress_Framework_
 	* @since 0.2.3
 	* @version 0.2.3
 	*/
-	function get_relevant_picture_id() {
-		
+	function get_relevant_image() {
+		if(has_post_thumbnail()) {
+			return $this->get_the_featured_image_id();
+		} else {
+			return $this->get_the_first_image();
+		}
+	}
+
+
+	/**
+	* Returns relevant image source
+	* @author Eric Wennerberg
+	* @since 0.2.3
+	* @version 0.2.3
+	* @uses func $this->get_relevant_image()
+	*/
+	function get_relevant_image_src($size = false) {
+		$size = !$size ? $this->theme_opt['featured_image_size'] : $size;
+		$imageArray = wp_get_attachment_image_src($this->get_relevant_image(), $size);
+		return $imageArray[0];
+	}
+
+	/**
+	* Returns the path to the featured image
+	* @author Eric Wennerberg
+	* @since 0.2.3
+	* @version 0.2.3
+	* @return str image src.
+	*/
+	function get_the_featured_image_id() {
+		return get_post_thumbnail_id(get_the_ID());
+	}
+
+
+	/**
+	* Returns the post's first image's src
+	* @author Eric Wennerberg
+	* @since 0.2.3
+	* @version 0.2.3
+	* @return str image src
+	*/
+	function get_the_first_image($size = false) {
+		$img_id = '';
+		$output = preg_match_all('/wp-image-([0-9]*)/i', get_the_content(), $matches);
+		if(empty($matches[1])) {
+			return false;
+		}
+		return $matches[1][0];
+	}
+
+
+	/** 
+	* Returns the featured image markup
+	* @author Eric Wennerberg
+	* @since 0.2.0
+	* @version 0.2.0
+	* @param str $class
+	* @param bool $inner
+	* @param bool $nomargin
+	* @return str The markup || bool false if no image exist
+	*/
+	function get_the_featured_image($class='', $inner = false, $nomargin = false) {
+		if(has_post_thumbnail()) {
+			$class .= $nomargin ? ' entry-featured-image--nomargin' :'';
+			$imageArray = wp_get_attachment_image_src(get_post_thumbnail_id(get_the_ID()), $this->theme_opt['featured_image_size']);
+			$divinner = $inner ? '<div class="accent-background-color font-awesome"><span>&#xf061;</span></div>':'';
+			$div = '<div class="entry-featured-image background-image featured-image-padding'.$class.'" style="background-image: url('.$imageArray[0].')">'.$divinner.'</div>';
+			if(is_single()) {
+				return $div;
+			} else {
+				return '<a href="'.get_permalink().'">'.$div.'</a>';
+			}
+		} else {
+			return false;
+		}
 	}
 
 

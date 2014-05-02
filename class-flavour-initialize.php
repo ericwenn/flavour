@@ -165,7 +165,9 @@ class Flavour_WordPress_Framework_Initialize extends Flavour_WordPress_Framework
 	* @return str Filtered content.
 	*/
 	function initialize_content_autopagination($content) {
-		$content .= $this->theme_opt['default_wp_link_pages'] ? wp_link_pages(array('echo' => 0)) : $this->get_the_post_pagination(array('current_class' => 'accent-border-color accent-background-color'));
+		if(is_singular()) {
+			$content .= $this->theme_opt['default_wp_link_pages'] ? wp_link_pages(array('echo' => 0)) : $this->get_the_post_pagination(array());
+		}
 		return $content;
 	}
 
